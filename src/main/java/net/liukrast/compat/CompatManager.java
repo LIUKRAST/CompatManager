@@ -1,120 +1,87 @@
 package net.liukrast.compat;
 
-import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import org.slf4j.Logger;
+import net.neoforged.fml.event.lifecycle.FMLConstructModEvent;
+import net.neoforged.fml.javafmlmod.FMLModContainer;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.LoadingModList;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
-@Mod(CompatManager.MODID)
+import java.lang.annotation.ElementType;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+/**
+ * This class is internal. Please read and use {@link Compat}
+ * */
+@Mod("compat_manager")
 public class CompatManager {
-    // Define mod id in a common place for everything to reference
-    public static final String MODID = "compat_manager";
-    // Directly reference a slf4j logger
-    private static final Logger LOGGER = LogUtils.getLogger();
-    // Create a Deferred Register to hold Blocks which will all be registered under the "compat_manager" namespace
-    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
-    // Create a Deferred Register to hold Items which will all be registered under the "compat_manager" namespace
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    // Create a Deferred Register to hold CreativeModeTabs which will all be registered under the "compat_manager" namespace
-    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
-
-    // Creates a new Block with the id "compat_manager:example_block", combining the namespace and path
-    public static final DeferredBlock<Block> EXAMPLE_BLOCK = BLOCKS.registerSimpleBlock("example_block", BlockBehaviour.Properties.of().mapColor(MapColor.STONE));
-    // Creates a new BlockItem with the id "compat_manager:example_block", combining the namespace and path
-    public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
-
-    // Creates a new food item with the id "compat_manager:example_id", nutrition 1 and saturation 2
-    public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
-
-    // Creates a creative tab with the id "compat_manager:example_tab" for the example item, that is placed after the combat tab
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder().title(Component.translatable("itemGroup.compat_manager")).withTabsBefore(CreativeModeTabs.COMBAT).icon(() -> EXAMPLE_ITEM.get().getDefaultInstance()).displayItems((parameters, output) -> {
-        output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
-    }).build());
-
-    // The constructor for the mod class is the first code that is run when your mod is loaded.
-    // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
-    public CompatManager(IEventBus modEventBus, ModContainer modContainer) {
-        // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
-
-        // Register the Deferred Register to the mod event bus so blocks get registered
-        BLOCKS.register(modEventBus);
-        // Register the Deferred Register to the mod event bus so items get registered
-        ITEMS.register(modEventBus);
-        // Register the Deferred Register to the mod event bus so tabs get registered
-        CREATIVE_MODE_TABS.register(modEventBus);
-
-        // Register ourselves for server and other game events we are interested in.
-        // Note that this is necessary if and only if we want *this* class (CompatManager) to respond directly to events.
-        // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
-        NeoForge.EVENT_BUS.register(this);
-
-        // Register the item to a creative tab
-        modEventBus.addListener(this::addCreative);
-
-        // Register our mod's ModConfigSpec so that FML can create and load the config file for us
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+    public CompatManager() {
+        ModList.get().forEachModContainer((id, container) -> {
+            var bus = container.getEventBus();
+            if(bus == null) return;
+            bus.addListener((Consumer<FMLConstructModEvent>) event -> init(container));
+        });
     }
 
-    private void commonSetup(final FMLCommonSetupEvent event) {
-        // Some common setup code
-        LOGGER.info("HELLO FROM COMMON SETUP");
+    private static void init(ModContainer container) {
+        assert container.getEventBus() != null;
+        container.getModInfo().getOwningFile().getFile().getScanResult().getAnnotatedBy(Compat.class, ElementType.TYPE)
+                .forEach(data -> {
+                    if(LoadingModList.get().getModFileById((String)data.annotationData().get("value")) == null) return;
+                    if(Arrays.stream(((Dist[])data.annotationData().get("dist"))).noneMatch(dist -> dist == FMLLoader.getDist())) return;
+                    try {
+                        Class<?> clazz = Class.forName(data.memberName());
 
-        if (Config.logDirtBlock) LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
+                        try {
+                            var constructors = clazz.getConstructors();
+                            if (constructors.length != 1) {
+                                throw new RuntimeException("Compat class " + clazz + " must have exactly 1 public constructor, found " + constructors.length);
+                            }
+                            var constructor = constructors[0];
 
-        LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
+                            // Allowed arguments for injection via constructor
+                            Map<Class<?>, Object> allowedConstructorArgs = Map.of(
+                                    IEventBus.class, container.getEventBus(),
+                                    ModContainer.class, container,
+                                    FMLModContainer.class, container,
+                                    Dist.class, FMLLoader.getDist());
 
-        Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
-    }
+                            var parameterTypes = constructor.getParameterTypes();
+                            Object[] constructorArgs = new Object[parameterTypes.length];
+                            Set<Class<?>> foundArgs = new HashSet<>();
 
-    // Add the example block item to the building blocks tab
-    private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) event.accept(EXAMPLE_BLOCK_ITEM);
-    }
+                            for (int i = 0; i < parameterTypes.length; i++) {
+                                Object argInstance = allowedConstructorArgs.get(parameterTypes[i]);
+                                if (argInstance == null) {
+                                    throw new RuntimeException("Compat constructor has unsupported argument " + parameterTypes[i] + ". Allowed optional argument classes: " +
+                                            allowedConstructorArgs.keySet().stream().map(Class::getSimpleName).collect(Collectors.joining(", ")));
+                                }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        // Do something when the server starts
-        LOGGER.info("HELLO from server starting");
-    }
+                                if (foundArgs.contains(parameterTypes[i])) {
+                                    throw new RuntimeException("Duplicate compat constructor argument type: " + parameterTypes[i]);
+                                }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-    @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            // Some client setup code
-            LOGGER.info("HELLO FROM CLIENT SETUP");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
-        }
+                                foundArgs.add(parameterTypes[i]);
+                                constructorArgs[i] = argInstance;
+                            }
+
+                            // All arguments are found
+                            constructor.newInstance(constructorArgs);
+                        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                            throw new RuntimeException("Failed to create compat instance " + clazz.getName(), e);
+                        }
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException("Failed to create compat instance " + data.memberName(), e);
+                    }
+                });
     }
 }
