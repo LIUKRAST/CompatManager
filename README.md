@@ -16,7 +16,7 @@ repositories {
 
 ```groovy
 dependencies {
-    implementation("net.liukrast:compat_manager-1.21.1:1.0.1")
+    implementation("net.liukrast:compat_manager-1.21.1:1.0.2")
 }
 ```
 

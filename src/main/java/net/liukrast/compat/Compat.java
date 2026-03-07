@@ -11,16 +11,16 @@ import java.lang.annotation.RetentionPolicy;
  *
  * <br><br>
  * This annotation looks just the same as {@link net.neoforged.fml.common.Mod}, so you can register events, deferred registries, and whatever you prefer.
- * Your annotated classes are loaded only if all the compat mod IDs are found, so feel free to import all your classes
+ * Your annotated classes are loaded only if the compat mod ID is found, so feel free to import all your classes
  * <br><br>
  * <strong>VERY IMPORTANT: Your mod must annotate the dependency to this mod in their mods toml and specify the ordering AFTER</strong>
  * */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Compat {
     /**
-     * The unique mod identifiers for this compat. <strong>This must match your compatibility mod IDs, not your mod ID</strong>
+     * The unique mod identifier for this compat. <strong>This must match your compatibility mod ID, not your mod ID</strong>
      * */
-    String[] value();
+    String value();
 
     /**
      * @return the side to load this compatibility entrypoint on
