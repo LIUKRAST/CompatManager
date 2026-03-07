@@ -6,6 +6,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLConstructModEvent;
+import net.neoforged.fml.javafmlmod.AutomaticEventSubscriber;
 import net.neoforged.fml.javafmlmod.FMLModContainer;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.LoadingModList;
@@ -37,7 +38,7 @@ public class CompatManager {
         container.getModInfo().getOwningFile().getFile().getScanResult().getAnnotatedBy(Compat.class, ElementType.TYPE)
                 .forEach(data -> {
                     if(LoadingModList.get().getModFileById((String)data.annotationData().get("value")) == null) return;
-                    if(Arrays.stream(((Dist[])data.annotationData().get("dist"))).noneMatch(dist -> dist == FMLLoader.getDist())) return;
+                    if(AutomaticEventSubscriber.getSides(data.annotationData().get("dist")).contains(FMLLoader.getDist())) return;
                     try {
                         Class<?> clazz = Class.forName(data.memberName());
 
