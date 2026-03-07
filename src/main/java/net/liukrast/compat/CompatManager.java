@@ -38,7 +38,7 @@ public class CompatManager {
         container.getModInfo().getOwningFile().getFile().getScanResult().getAnnotatedBy(Compat.class, ElementType.TYPE)
                 .forEach(data -> {
                     if(LoadingModList.get().getModFileById((String)data.annotationData().get("value")) == null) return;
-                    if(AutomaticEventSubscriber.getSides(data.annotationData().get("dist")).contains(FMLLoader.getDist())) return;
+                    if(!AutomaticEventSubscriber.getSides(data.annotationData().get("dist")).contains(FMLLoader.getDist())) return;
                     try {
                         Class<?> clazz = Class.forName(data.memberName());
 
