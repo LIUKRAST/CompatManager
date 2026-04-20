@@ -13,10 +13,7 @@ import net.neoforged.fml.loading.LoadingModList;
 
 import java.lang.annotation.ElementType;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -37,7 +34,10 @@ public class CompatManager {
         assert container.getEventBus() != null;
         container.getModInfo().getOwningFile().getFile().getScanResult().getAnnotatedBy(Compat.class, ElementType.TYPE)
                 .forEach(data -> {
-                    if(LoadingModList.get().getModFileById((String)data.annotationData().get("value")) == null) return;
+                    @SuppressWarnings("unchecked")
+                    List<String> modIds = (List<String>)data.annotationData().get("value");
+
+                    if(modIds.stream().map(id -> LoadingModList.get().getModFileById(id)).anyMatch(Objects::isNull)) return;
                     if(!AutomaticEventSubscriber.getSides(data.annotationData().get("dist")).contains(FMLLoader.getDist())) return;
                     try {
                         Class<?> clazz = Class.forName(data.memberName());

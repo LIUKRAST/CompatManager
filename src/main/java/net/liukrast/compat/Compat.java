@@ -20,7 +20,7 @@ public @interface Compat {
     /**
      * The unique mod identifier for this compat. <strong>This must match your compatibility mod ID, not your mod ID</strong>
      * */
-    String value();
+    String[] value();
 
     /**
      * @return the side to load this compatibility entrypoint on
